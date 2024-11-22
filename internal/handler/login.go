@@ -28,12 +28,12 @@ func (h *Handler) LoginHandler(c echo.Context) error {
 		return response.ValidationErrorResponse(validationErrors)
 	}
 
-	sb := h.NewSupabaseClient()
+	sb := h.AuthClient()
 	uc := supabase.UserCredentials{
 		Email:    r.Email,
 		Password: r.Password,
 	}
-	user, serviceErr, err := sb.Auth.SignIn(uc)
+	user, serviceErr, err := sb.SignIn(uc)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}

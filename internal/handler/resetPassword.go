@@ -29,8 +29,8 @@ func (h *Handler) ResetPasswordHandler(c echo.Context) error {
 	token := c.Request().Header.Get("Authorization")
 	token = token[7:]
 
-	sb := h.NewSupabaseClient()
-	serviceErr, err := sb.Auth.ResetPassword(token, r.Password)
+	sb := h.AuthClient()
+	serviceErr, err := sb.ResetPassword(token, r.Password)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}

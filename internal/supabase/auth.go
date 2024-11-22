@@ -43,6 +43,11 @@ type Auth struct {
 	client *Client
 }
 
+func CreateAuth(baseURL string, supabaseKey string, debug ...bool) *Auth {
+	client := CreateClient(baseURL, supabaseKey, debug...)
+	return &Auth{client: client}
+}
+
 func (a *Auth) newRequestWithContext(method string, uri string, data any) (*http.Request, error) {
 	reqBody, err := json.Marshal(data)
 	if err != nil {

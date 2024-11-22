@@ -25,7 +25,6 @@ type Client struct {
 	BaseURL    string
 	apiKey     string
 	HTTPClient *http.Client
-	Auth       *Auth
 	DB         *postgrest.Client
 }
 
@@ -37,7 +36,6 @@ func CreateClient(baseURL string, supabaseKey string, debug ...bool) *Client {
 	client := &Client{
 		BaseURL: baseURL,
 		apiKey:  supabaseKey,
-		Auth:    &Auth{},
 		HTTPClient: &http.Client{
 			Timeout: time.Minute,
 		},
@@ -54,7 +52,6 @@ func CreateClient(baseURL string, supabaseKey string, debug ...bool) *Client {
 		),
 	}
 
-	client.Auth.client = client
 	return client
 }
 

@@ -19,13 +19,13 @@ func (h *Handler) RegisterHandler(c echo.Context) error {
 		return response.ServerErrorResponse(err)
 	}
 
-	sb := supabase.CreateClient(h.App.Config.Supabase.Url, h.App.Config.Supabase.Key)
+	sb := h.App.AuthClient()
 	uc := supabase.UserCredentials{
 		Email:    r.Email,
 		Password: r.Password,
 	}
 
-	user, serviceErr, err := sb.Auth.SignUp(uc)
+	user, serviceErr, err := sb.SignUp(uc)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}

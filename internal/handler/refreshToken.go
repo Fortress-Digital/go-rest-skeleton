@@ -26,8 +26,8 @@ func (h *Handler) RefreshTokenHandler(c echo.Context) error {
 		return response.ValidationErrorResponse(validationErrors)
 	}
 
-	sb := h.NewSupabaseClient()
-	user, serviceErr, err := sb.Auth.RefreshToken(r.RefreshToken)
+	sb := h.AuthClient()
+	user, serviceErr, err := sb.RefreshToken(r.RefreshToken)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}

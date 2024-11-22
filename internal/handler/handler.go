@@ -9,6 +9,6 @@ type Handler struct {
 	App *config.App
 }
 
-func (h *Handler) NewSupabaseClient() *supabase.Client {
-	return h.App.NewSupabaseClient()
+func (h *Handler) AuthClient() *supabase.Auth {
+	return h.App.AuthClient()
 }

@@ -12,6 +12,6 @@ type App struct {
 	DB     *gorm.DB
 }
 
-func (a *App) NewSupabaseClient() *supabase.Client {
-	return supabase.CreateClient(a.Config.Supabase.Url, a.Config.Supabase.Key)
+func (a *App) AuthClient() *supabase.Auth {
+	return supabase.CreateAuth(a.Config.Supabase.Url, a.Config.Supabase.Key)
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/http/request"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/http/response"
-	"github.com/Fortress-Digital/go-rest-skeleton/internal/supabase"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/validation"
 	"github.com/labstack/echo/v4"
 )
@@ -27,9 +26,9 @@ func (h *Handler) ForgottenPasswordHandler(c echo.Context) error {
 		return response.ValidationErrorResponse(validationErrors)
 	}
 
-	sb := supabase.CreateClient(h.App.Config.Supabase.Url, h.App.Config.Supabase.Key)
+	sb := h.App.AuthClient()
 
-	serviceErr, err := sb.Auth.ForgottenPassword(r.Email)
+	serviceErr, err := sb.ForgottenPassword(r.Email)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}
