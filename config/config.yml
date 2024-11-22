@@ -1,0 +1,16 @@
+application:
+  name: rest-api-skeleton
+  version: 0.1.0
+  env: ${APP_ENV}
+  debug: ${APP_DEBUG}
+server:
+  port: 8080
+  timeout: 30
+  read_timeout: 5
+  write_timeout: 10
+database:
+  driver: mysql
+  dsn: ${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST}:${DB_PORT})/${DB_DATABASE}?parseTime=true
+supabase:
+  url: ${SUPABASE_URL}
+  key: ${SUPABASE_KEY}
