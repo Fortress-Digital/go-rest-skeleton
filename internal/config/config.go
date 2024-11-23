@@ -38,21 +38,7 @@ type Config struct {
 	Supabase    Supabase    `yaml:"supabase"`
 }
 
-type Configuration struct {
-}
-
-func (c Configuration) Register(app *App) error {
-	cfg, err := newConfig()
-	if err != nil {
-		return err
-	}
-
-	app.Config = cfg
-
-	return nil
-}
-
-func newConfig() (*Config, error) {
+func NewConfig() (*Config, error) {
 	configPath, err := parseConfig()
 	if err != nil {
 		return nil, err

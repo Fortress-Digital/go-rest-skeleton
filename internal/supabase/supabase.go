@@ -1,6 +1,8 @@
 package supabase
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -21,19 +23,24 @@ type ErrorResponse struct {
 	Message   string `json:"msg"`
 }
 
-type Client struct {
+type SupabaseClientInterface interface {
+	sendCustomRequest(req *http.Request, successValue interface{}, errorValue interface{}) (bool, error)
+	newRequestWithContext(method string, uri string, data any) (*http.Request, error)
+}
+
+type SupabaseClient struct {
 	BaseURL    string
 	apiKey     string
 	HTTPClient *http.Client
 	DB         *postgrest.Client
 }
 
-func CreateClient(baseURL string, supabaseKey string, debug ...bool) *Client {
+func CreateClient(baseURL string, supabaseKey string, debug ...bool) *SupabaseClient {
 	parsedURL, err := url.Parse(fmt.Sprintf("%s/%s/", baseURL, RestEndpoint))
 	if err != nil {
 		panic(err)
 	}
-	client := &Client{
+	client := &SupabaseClient{
 		BaseURL: baseURL,
 		apiKey:  supabaseKey,
 		HTTPClient: &http.Client{
@@ -59,7 +66,7 @@ func injectAuthorizationHeader(req *http.Request, value string) {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", value))
 }
 
-func (c *Client) sendCustomRequest(req *http.Request, successValue interface{}, errorValue interface{}) (bool, error) {
+func (c *SupabaseClient) sendCustomRequest(req *http.Request, successValue interface{}, errorValue interface{}) (bool, error) {
 	req.Header.Set("apikey", c.apiKey)
 	res, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -82,4 +89,23 @@ func (c *Client) sendCustomRequest(req *http.Request, successValue interface{}, 
 	}
 
 	return false, nil
+}
+
+func (c *SupabaseClient) newRequestWithContext(method string, uri string, data any) (*http.Request, error) {
+	reqBody, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+	reqURL := fmt.Sprintf("%s/%s/%s", c.BaseURL, AuthEndpoint, uri)
+
+	req, err := http.NewRequestWithContext(ctx, method, reqURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	return req, nil
 }

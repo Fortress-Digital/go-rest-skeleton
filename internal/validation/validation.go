@@ -5,6 +5,8 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	enTranslations "github.com/go-playground/validator/v10/translations/en"
+	"reflect"
+	"strings"
 )
 
 type ValidationError struct {
@@ -22,8 +24,22 @@ type Validator struct {
 	translator ut.Translator
 }
 
-func NewValidator() *Validator {
+type ValidatorInterface interface {
+	Validate(data interface{}) ValidationErrors
+}
+
+func NewValidator() ValidatorInterface {
 	validator := validator.New(validator.WithRequiredStructEnabled())
+	validator.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+
+		if name == "-" {
+			return ""
+		}
+
+		return name
+	})
+
 	translator := registerTranslator(validator)
 
 	return &Validator{

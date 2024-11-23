@@ -8,7 +8,7 @@ import (
 
 func (h *Handler) HomeHandler(c echo.Context) error {
 	r := map[string]string{
-		"message": fmt.Sprintf("Welcome to %s.", h.App.Config.Application.Name),
+		"message": fmt.Sprintf("Welcome to %s.", h.cfg.Application.Name),
 	}
 	return response.SuccessResponse(c, r)
 }

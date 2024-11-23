@@ -9,8 +9,7 @@ func (h *Handler) LogoutHandler(c echo.Context) error {
 	token := c.Request().Header.Get("Authorization")
 	token = token[7:]
 
-	sb := h.AuthClient()
-	serviceErr, err := sb.SignOut(token)
+	serviceErr, err := h.auth.SignOut(token)
 
 	if err != nil {
 		return response.ServerErrorResponse(err)

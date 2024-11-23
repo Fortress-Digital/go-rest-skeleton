@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/config"
-	"github.com/Fortress-Digital/go-rest-skeleton/internal/route"
+	"github.com/Fortress-Digital/go-rest-skeleton/internal/log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,18 +14,14 @@ import (
 	"time"
 )
 
-func Server(app *config.App) error {
-	cfg := app.Config
-	logger := app.Logger
-	router := route.NewRouter(app)
-
+func NewServer(cfg *config.Config, router http.Handler, log log.LoggerInterface) error {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      router,
 		IdleTimeout:  time.Duration(cfg.Server.Timeout) * time.Second,
 		ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Second,
-		ErrorLog:     slog.NewLogLogger(app.Logger.Handler(), slog.LevelError),
+		ErrorLog:     slog.NewLogLogger(log.Handler(), slog.LevelError),
 	}
 
 	// Create a channel to receive the error from the ListenAndServe() method
@@ -42,7 +38,7 @@ func Server(app *config.App) error {
 		// Block until the signal is received
 		s := <-quit
 
-		logger.Info("Shutting down server", "signal", s.String())
+		log.Info("Shutting down server", "signal", s.String())
 
 		// Create a context with a timeout of 30 seconds
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -51,9 +47,9 @@ func Server(app *config.App) error {
 		shutdownError <- srv.Shutdown(ctx)
 	}()
 
-	logger.Info("starting server", "addr", srv.Addr, "env", cfg.Application.Env)
+	log.Info("starting server", "addr", srv.Addr, "env", cfg.Application.Env)
 
-	// Call the ListenAndServe() method on our http.Server struct
+	// Call the ListenAndServe() method on our http.NewServer struct
 	// Only returning an error if it's not http.ErrServerClosed
 	err := srv.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
@@ -66,7 +62,7 @@ func Server(app *config.App) error {
 		return err
 	}
 
-	logger.Info("stopped server", "addr", srv.Addr)
+	log.Info("stopped server", "addr", srv.Addr)
 
 	return nil
 }

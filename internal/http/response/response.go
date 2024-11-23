@@ -1,6 +1,7 @@
 package response
 
 import (
+	"errors"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/validation"
 	"github.com/labstack/echo/v4"
 	"net/http"
@@ -17,7 +18,9 @@ func ErrorResponse(status int, message any) *echo.HTTPError {
 
 func ServerErrorResponse(errors ...error) *echo.HTTPError {
 	if len(errors) > 0 {
-		return ErrorResponse(http.StatusInternalServerError, errors[0])
+		return ErrorResponse(http.StatusInternalServerError, Error{
+			Message: errors[0].Error(),
+		})
 	}
 
 	return ErrorResponse(http.StatusInternalServerError, Error{
@@ -27,9 +30,7 @@ func ServerErrorResponse(errors ...error) *echo.HTTPError {
 
 func BadRequestResponse(err any) *echo.HTTPError {
 	if err, ok := err.(error); ok {
-		return ErrorResponse(http.StatusBadRequest, Error{
-			Message: err.Error(),
-		})
+		return ErrorResponse(http.StatusBadRequest, err.Error())
 	}
 
 	return ErrorResponse(http.StatusBadRequest, err)
@@ -39,11 +40,8 @@ func ValidationErrorResponse(err validation.ValidationErrors) *echo.HTTPError {
 	return ErrorResponse(http.StatusUnprocessableEntity, err)
 }
 
-func NoContentResponse(c echo.Context) *echo.HTTPError {
-	err := c.NoContent(http.StatusNoContent)
-	if err != nil {
-		return ServerErrorResponse()
-	}
+func NoContentResponse(c echo.Context) error {
+	_ = c.NoContent(http.StatusNoContent)
 
 	return nil
 }
@@ -51,7 +49,7 @@ func NoContentResponse(c echo.Context) *echo.HTTPError {
 func Response(c echo.Context, status int, data any) *echo.HTTPError {
 	err := c.JSON(status, data)
 	if err != nil {
-		return ServerErrorResponse()
+		return ServerErrorResponse(errors.New("failed to parseJSON response"))
 	}
 
 	return nil

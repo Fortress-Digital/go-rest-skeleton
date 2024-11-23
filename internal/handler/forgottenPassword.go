@@ -1,34 +1,27 @@
 package handler
 
 import (
-	"encoding/json"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/http/request"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/http/response"
-	"github.com/Fortress-Digital/go-rest-skeleton/internal/validation"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) ForgottenPasswordHandler(c echo.Context) error {
 	var r request.ForgottenPasswordRequest
 
-	decoder := json.NewDecoder(c.Request().Body)
-	decoder.DisallowUnknownFields()
+	err := h.decode(c.Request().Body, &r)
 
-	err := decoder.Decode(&r)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}
 
-	v := validation.NewValidator()
-	validationErrors := v.Validate(r)
+	validationErrors := h.validator.Validate(r)
 
 	if len(validationErrors.ValidationErrors) > 0 {
 		return response.ValidationErrorResponse(validationErrors)
 	}
 
-	sb := h.App.AuthClient()
-
-	serviceErr, err := sb.ForgottenPassword(r.Email)
+	serviceErr, err := h.auth.ForgottenPassword(r.Email)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/http/request"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/http/response"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/supabase"
@@ -11,21 +10,23 @@ import (
 func (h *Handler) RegisterHandler(c echo.Context) error {
 	var r request.RegisterRequest
 
-	decoder := json.NewDecoder(c.Request().Body)
-	decoder.DisallowUnknownFields()
-
-	err := decoder.Decode(&r)
+	err := h.decode(c.Request().Body, &r)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}
 
-	sb := h.App.AuthClient()
+	validationErrors := h.validator.Validate(r)
+
+	if len(validationErrors.ValidationErrors) > 0 {
+		return response.ValidationErrorResponse(validationErrors)
+	}
+
 	uc := supabase.UserCredentials{
 		Email:    r.Email,
 		Password: r.Password,
 	}
 
-	user, serviceErr, err := sb.SignUp(uc)
+	user, serviceErr, err := h.auth.SignUp(uc)
 	if err != nil {
 		return response.ServerErrorResponse(err)
 	}

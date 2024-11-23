@@ -1,10 +1,6 @@
 package supabase
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 )
@@ -39,36 +35,26 @@ type AuthenticatedDetails struct {
 	ProviderRefreshToken string `json:"provider_refresh_token"`
 }
 
-type Auth struct {
-	client *Client
+type AuthClientInterface interface {
+	SignUp(credentials UserCredentials) (*User, *ErrorResponse, error)
+	SignIn(credentials UserCredentials) (*AuthenticatedDetails, *ErrorResponse, error)
+	SignOut(userToken string) (*ErrorResponse, error)
+	ForgottenPassword(email string) (*ErrorResponse, error)
+	ResetPassword(userToken string, password string) (*ErrorResponse, error)
+	RefreshToken(refreshToken string) (*AuthenticatedDetails, *ErrorResponse, error)
 }
 
-func CreateAuth(baseURL string, supabaseKey string, debug ...bool) *Auth {
+type AuthClient struct {
+	client SupabaseClientInterface
+}
+
+func NewAuthClient(baseURL string, supabaseKey string, debug ...bool) AuthClientInterface {
 	client := CreateClient(baseURL, supabaseKey, debug...)
-	return &Auth{client: client}
+	return &AuthClient{client: client}
 }
 
-func (a *Auth) newRequestWithContext(method string, uri string, data any) (*http.Request, error) {
-	reqBody, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx := context.Background()
-	reqURL := fmt.Sprintf("%s/%s/%s", a.client.BaseURL, AuthEndpoint, uri)
-
-	req, err := http.NewRequestWithContext(ctx, method, reqURL, bytes.NewBuffer(reqBody))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	return req, nil
-}
-
-func (a *Auth) SignUp(credentials UserCredentials) (*User, *ErrorResponse, error) {
-	req, err := a.newRequestWithContext(http.MethodPost, "signup", credentials)
+func (a *AuthClient) SignUp(credentials UserCredentials) (*User, *ErrorResponse, error) {
+	req, err := a.client.newRequestWithContext(http.MethodPost, "signup", credentials)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -88,8 +74,8 @@ func (a *Auth) SignUp(credentials UserCredentials) (*User, *ErrorResponse, error
 	return &res, nil, nil
 }
 
-func (a *Auth) SignIn(credentials UserCredentials) (*AuthenticatedDetails, *ErrorResponse, error) {
-	req, err := a.newRequestWithContext(http.MethodPost, "token?grant_type=password", credentials)
+func (a *AuthClient) SignIn(credentials UserCredentials) (*AuthenticatedDetails, *ErrorResponse, error) {
+	req, err := a.client.newRequestWithContext(http.MethodPost, "token?grant_type=password", credentials)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -112,8 +98,8 @@ func (a *Auth) SignIn(credentials UserCredentials) (*AuthenticatedDetails, *Erro
 	return &res, nil, nil
 }
 
-func (a *Auth) SignOut(userToken string) (*ErrorResponse, error) {
-	req, err := a.newRequestWithContext(http.MethodPost, "logout", nil)
+func (a *AuthClient) SignOut(userToken string) (*ErrorResponse, error) {
+	req, err := a.client.newRequestWithContext(http.MethodPost, "logout", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -135,9 +121,9 @@ func (a *Auth) SignOut(userToken string) (*ErrorResponse, error) {
 	return nil, nil
 }
 
-func (a *Auth) ForgottenPassword(email string) (*ErrorResponse, error) {
+func (a *AuthClient) ForgottenPassword(email string) (*ErrorResponse, error) {
 	reqBody := map[string]string{"email": email}
-	req, err := a.newRequestWithContext(http.MethodPost, "recover", reqBody)
+	req, err := a.client.newRequestWithContext(http.MethodPost, "recover", reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -156,9 +142,9 @@ func (a *Auth) ForgottenPassword(email string) (*ErrorResponse, error) {
 	return nil, nil
 }
 
-func (a *Auth) ResetPassword(userToken string, password string) (*ErrorResponse, error) {
+func (a *AuthClient) ResetPassword(userToken string, password string) (*ErrorResponse, error) {
 	reqBody := map[string]string{"password": password}
-	req, err := a.newRequestWithContext(http.MethodPut, "user?type=recovery", reqBody)
+	req, err := a.client.newRequestWithContext(http.MethodPut, "user?type=recovery", reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -180,9 +166,9 @@ func (a *Auth) ResetPassword(userToken string, password string) (*ErrorResponse,
 	return nil, nil
 }
 
-func (a *Auth) RefreshToken(refreshToken string) (*AuthenticatedDetails, *ErrorResponse, error) {
+func (a *AuthClient) RefreshToken(refreshToken string) (*AuthenticatedDetails, *ErrorResponse, error) {
 	reqBody := map[string]string{"refresh_token": refreshToken}
-	req, err := a.newRequestWithContext(http.MethodPost, "token?grant_type=refresh_token", reqBody)
+	req, err := a.client.newRequestWithContext(http.MethodPost, "token?grant_type=refresh_token", reqBody)
 	if err != nil {
 		return nil, nil, err
 	}

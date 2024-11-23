@@ -2,18 +2,14 @@ package main
 
 import (
 	"github.com/Fortress-Digital/go-rest-skeleton/cmd"
-	"github.com/Fortress-Digital/go-rest-skeleton/internal/config"
-	"log/slog"
+	"github.com/Fortress-Digital/go-rest-skeleton/internal/log"
 	"os"
 )
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	app := config.App{
-		Logger: logger,
-	}
+	logger := log.NewLogger()
 
-	err := cmd.Execute(&app)
+	err := cmd.Execute(logger)
 	logger.Error(err.Error())
 	os.Exit(1)
 }

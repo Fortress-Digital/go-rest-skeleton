@@ -9,21 +9,19 @@ import (
 	"net/http"
 )
 
-func NewRouter(app *config.App) http.Handler {
+func NewRouter(cfg *config.Config, handler *handler.Handler) http.Handler {
 	router := echo.New()
 	router.Use(middleware.Recover())
 	router.Use(middleware.CORS())
 	router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
-	router.Use(middlewares.CSRFMiddleware(app.Config))
+	router.Use(middlewares.CSRFMiddleware(cfg))
 
-	defineRoutes(router, app)
+	defineRoutes(router, handler)
 
 	return router
 }
 
-func defineRoutes(router *echo.Echo, app *config.App) {
-	h := handler.Handler{App: app}
-
+func defineRoutes(router *echo.Echo, h *handler.Handler) {
 	router.GET("/", h.HomeHandler)
 	router.POST("/register", h.RegisterHandler)
 	router.POST("/login", h.LoginHandler)
