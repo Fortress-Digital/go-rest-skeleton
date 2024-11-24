@@ -166,7 +166,7 @@ func TestResponseWithBadDate(t *testing.T) {
 	expected := echo.HTTPError{
 		Code: http.StatusInternalServerError,
 		Message: Error{
-			Message: "failed to parseJSON response",
+			Message: "json: unsupported value: NaN",
 		},
 	}
 

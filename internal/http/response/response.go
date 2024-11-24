@@ -1,7 +1,6 @@
 package response
 
 import (
-	"errors"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/validation"
 	"github.com/labstack/echo/v4"
 	"net/http"
@@ -49,7 +48,7 @@ func NoContentResponse(c echo.Context) error {
 func Response(c echo.Context, status int, data any) *echo.HTTPError {
 	err := c.JSON(status, data)
 	if err != nil {
-		return ServerErrorResponse(errors.New("failed to parseJSON response"))
+		return ServerErrorResponse(err)
 	}
 
 	return nil
