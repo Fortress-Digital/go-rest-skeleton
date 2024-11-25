@@ -11,6 +11,5 @@ func CSRFMiddleware(cfg *config.Config) echo.MiddlewareFunc {
 		CookiePath:     "/",
 		CookieSecure:   cfg.Application.Env == "production",
 		CookieHTTPOnly: cfg.Application.Env == "production",
-		TokenLookup:    "header:X-CSRF-Token",
 	})
 }

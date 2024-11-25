@@ -6,15 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
-
-	postgrest "github.com/nedpals/postgrest-go/pkg"
-)
-
-const (
-	AuthEndpoint = "auth/v1"
-	RestEndpoint = "rest/v1"
 )
 
 type ErrorResponse struct {
@@ -23,40 +15,28 @@ type ErrorResponse struct {
 	Message   string `json:"msg"`
 }
 
+type HttpClientInterface interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type SupabaseClientInterface interface {
 	sendCustomRequest(req *http.Request, successValue interface{}, errorValue interface{}) (bool, error)
-	newRequestWithContext(method string, uri string, data any) (*http.Request, error)
+	newRequestWithContext(method string, reqURL string, data any) (*http.Request, error)
 }
 
 type SupabaseClient struct {
 	BaseURL    string
 	apiKey     string
-	HTTPClient *http.Client
-	DB         *postgrest.Client
+	HTTPClient HttpClientInterface
 }
 
-func CreateClient(baseURL string, supabaseKey string, debug ...bool) *SupabaseClient {
-	parsedURL, err := url.Parse(fmt.Sprintf("%s/%s/", baseURL, RestEndpoint))
-	if err != nil {
-		panic(err)
-	}
+func CreateClient(baseURL string, supabaseKey string) *SupabaseClient {
 	client := &SupabaseClient{
 		BaseURL: baseURL,
 		apiKey:  supabaseKey,
 		HTTPClient: &http.Client{
 			Timeout: time.Minute,
 		},
-		DB: postgrest.NewClient(
-			*parsedURL,
-			postgrest.WithTokenAuth(supabaseKey),
-			func(c *postgrest.Client) {
-				// debug parameter is only for postgrest-go for now
-				if len(debug) > 0 {
-					c.Debug = debug[0]
-				}
-				c.AddHeader("apikey", supabaseKey)
-			},
-		),
 	}
 
 	return client
@@ -81,7 +61,7 @@ func (c *SupabaseClient) sendCustomRequest(req *http.Request, successValue inter
 			return true, nil
 		}
 
-		return false, fmt.Errorf("unknown, status code: %d", res.StatusCode)
+		return false, fmt.Errorf("unknown error, status code: %d", res.StatusCode)
 	} else if res.StatusCode != http.StatusNoContent {
 		if err = json.NewDecoder(res.Body).Decode(&successValue); err != nil {
 			return false, err
@@ -98,7 +78,7 @@ func (c *SupabaseClient) newRequestWithContext(method string, uri string, data a
 	}
 
 	ctx := context.Background()
-	reqURL := fmt.Sprintf("%s/%s/%s", c.BaseURL, AuthEndpoint, uri)
+	reqURL := fmt.Sprintf("%s/%s", c.BaseURL, uri)
 
 	req, err := http.NewRequestWithContext(ctx, method, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -106,6 +86,7 @@ func (c *SupabaseClient) newRequestWithContext(method string, uri string, data a
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 
 	return req, nil
 }

@@ -21,6 +21,11 @@ logs:
 test:
 	go test -v -race -cover -count=1 -failfast ./...
 
+coverage:
+	go test -v -race -cover -coverprofile=.coverage.html -count=1 -failfast ./... && go tool cover -html=.coverage.html
+
+
+
 lint:
 	golangci-lint run -v
 

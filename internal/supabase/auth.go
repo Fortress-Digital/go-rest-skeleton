@@ -1,8 +1,13 @@
 package supabase
 
 import (
+	"fmt"
 	"net/http"
 	"time"
+)
+
+const (
+	AuthEndpoint = "auth/v1"
 )
 
 type UserCredentials struct {
@@ -36,6 +41,7 @@ type AuthenticatedDetails struct {
 }
 
 type AuthClientInterface interface {
+	newAuthRequestWithContext(method string, uri string, data any) (*http.Request, error)
 	SignUp(credentials UserCredentials) (*User, *ErrorResponse, error)
 	SignIn(credentials UserCredentials) (*AuthenticatedDetails, *ErrorResponse, error)
 	SignOut(userToken string) (*ErrorResponse, error)
@@ -48,13 +54,19 @@ type AuthClient struct {
 	client SupabaseClientInterface
 }
 
-func NewAuthClient(baseURL string, supabaseKey string, debug ...bool) AuthClientInterface {
-	client := CreateClient(baseURL, supabaseKey, debug...)
+func NewAuthClient(baseURL string, supabaseKey string) AuthClientInterface {
+	client := CreateClient(baseURL, supabaseKey)
 	return &AuthClient{client: client}
 }
 
+func (a *AuthClient) newAuthRequestWithContext(method string, uri string, data any) (*http.Request, error) {
+	reqURL := fmt.Sprintf("%s/%s", AuthEndpoint, uri)
+
+	return a.client.newRequestWithContext(method, reqURL, data)
+}
+
 func (a *AuthClient) SignUp(credentials UserCredentials) (*User, *ErrorResponse, error) {
-	req, err := a.client.newRequestWithContext(http.MethodPost, "signup", credentials)
+	req, err := a.newAuthRequestWithContext(http.MethodPost, "signup", credentials)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -75,7 +87,7 @@ func (a *AuthClient) SignUp(credentials UserCredentials) (*User, *ErrorResponse,
 }
 
 func (a *AuthClient) SignIn(credentials UserCredentials) (*AuthenticatedDetails, *ErrorResponse, error) {
-	req, err := a.client.newRequestWithContext(http.MethodPost, "token?grant_type=password", credentials)
+	req, err := a.newAuthRequestWithContext(http.MethodPost, "token?grant_type=password", credentials)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -99,7 +111,7 @@ func (a *AuthClient) SignIn(credentials UserCredentials) (*AuthenticatedDetails,
 }
 
 func (a *AuthClient) SignOut(userToken string) (*ErrorResponse, error) {
-	req, err := a.client.newRequestWithContext(http.MethodPost, "logout", nil)
+	req, err := a.newAuthRequestWithContext(http.MethodPost, "logout", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +135,7 @@ func (a *AuthClient) SignOut(userToken string) (*ErrorResponse, error) {
 
 func (a *AuthClient) ForgottenPassword(email string) (*ErrorResponse, error) {
 	reqBody := map[string]string{"email": email}
-	req, err := a.client.newRequestWithContext(http.MethodPost, "recover", reqBody)
+	req, err := a.newAuthRequestWithContext(http.MethodPost, "recover", reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +156,7 @@ func (a *AuthClient) ForgottenPassword(email string) (*ErrorResponse, error) {
 
 func (a *AuthClient) ResetPassword(userToken string, password string) (*ErrorResponse, error) {
 	reqBody := map[string]string{"password": password}
-	req, err := a.client.newRequestWithContext(http.MethodPut, "user?type=recovery", reqBody)
+	req, err := a.newAuthRequestWithContext(http.MethodPut, "user?type=recovery", reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +180,7 @@ func (a *AuthClient) ResetPassword(userToken string, password string) (*ErrorRes
 
 func (a *AuthClient) RefreshToken(refreshToken string) (*AuthenticatedDetails, *ErrorResponse, error) {
 	reqBody := map[string]string{"refresh_token": refreshToken}
-	req, err := a.client.newRequestWithContext(http.MethodPost, "token?grant_type=refresh_token", reqBody)
+	req, err := a.newAuthRequestWithContext(http.MethodPost, "token?grant_type=refresh_token", reqBody)
 	if err != nil {
 		return nil, nil, err
 	}
