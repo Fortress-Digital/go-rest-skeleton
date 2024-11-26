@@ -1,12 +1,18 @@
 package supabase
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"github.com/go-playground/assert/v2"
 	"github.com/stretchr/testify/mock"
+	"io"
 	"net/http"
+	"net/url"
 	"testing"
 )
+
+const SignInUrl = "http://localhost/auth/v1/token?grant_type=password"
 
 type SupabaseClientMock struct {
 	mock.Mock
@@ -14,6 +20,20 @@ type SupabaseClientMock struct {
 
 func (m *SupabaseClientMock) sendCustomRequest(req *http.Request, successValue interface{}, errorValue interface{}) (bool, error) {
 	args := m.Called(req, successValue, errorValue)
+
+	err, _ := errorValue.(*ErrorResponse)
+	err.Code = 400
+	err.ErrorCode = "error message"
+
+	if req.URL.String() == SignInUrl {
+		p := UserCredentials{}
+		json.NewDecoder(req.Body).Decode(&p)
+
+		if p.Email == "invalid_credentials@example.com" {
+			err.ErrorCode = "invalid_credentials"
+		}
+	}
+
 	return args.Bool(0), args.Error(1)
 }
 
@@ -91,15 +111,20 @@ func TestSignUp(t *testing.T) {
 			sendCustomRequestRes:     true,
 			sendCustomRequestErr:     nil,
 			expectedUser:             nil,
-			expectedSystemErr:        &ErrorResponse{},
-			expectedErr:              nil,
+			expectedSystemErr: &ErrorResponse{
+				Code:      400,
+				ErrorCode: "error message",
+			},
+			expectedErr: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			reqUrl, _ := url.Parse("http://localhost")
 			req := &http.Request{
 				Header: map[string][]string{},
+				URL:    reqUrl,
 			}
 			mockClient := new(SupabaseClientMock)
 			authClient := &AuthClient{client: mockClient}
@@ -120,6 +145,109 @@ func TestSignUp(t *testing.T) {
 			assert.Equal(t, user, tt.expectedUser)
 			assert.Equal(t, systemErr, tt.expectedSystemErr)
 			assert.Equal(t, err, tt.expectedErr)
+		})
+	}
+}
+
+func TestSignIn(t *testing.T) {
+	tests := []struct {
+		name                     string
+		email                    string
+		newRequestWithContextErr error
+		sendCustomRequestRes     bool
+		sendCustomRequestErr     error
+		expectedAuthenticated    any
+		expectedSystemErr        any
+		expectedErr              error
+	}{
+		{
+			name:                     "Should return authenticated details",
+			email:                    "test@example.com",
+			newRequestWithContextErr: nil,
+			sendCustomRequestRes:     false,
+			sendCustomRequestErr:     nil,
+			expectedAuthenticated:    &AuthenticatedDetails{},
+			expectedSystemErr:        nil,
+			expectedErr:              nil,
+		},
+		{
+			name:                     "New request with context should return error",
+			email:                    "test@example.com",
+			newRequestWithContextErr: errors.New("new request error"),
+			sendCustomRequestRes:     false,
+			sendCustomRequestErr:     nil,
+			expectedAuthenticated:    nil,
+			expectedSystemErr:        nil,
+			expectedErr:              errors.New("new request error"),
+		},
+		{
+			name:                     "Send custom request should return error",
+			email:                    "test@example.com",
+			newRequestWithContextErr: nil,
+			sendCustomRequestRes:     false,
+			sendCustomRequestErr:     errors.New("send custom request error"),
+			expectedAuthenticated:    nil,
+			expectedSystemErr:        nil,
+			expectedErr:              errors.New("send custom request error"),
+		},
+		{
+			name:                     "Send custom request should return service system error",
+			email:                    "test@example.com",
+			newRequestWithContextErr: nil,
+			sendCustomRequestRes:     true,
+			sendCustomRequestErr:     nil,
+			expectedAuthenticated:    nil,
+			expectedSystemErr: &ErrorResponse{
+				Code:      400,
+				ErrorCode: "error message",
+			},
+			expectedErr: nil,
+		},
+		{
+			name:                     "Send custom request should return invalid_credentials error",
+			email:                    "invalid_credentials@example.com",
+			newRequestWithContextErr: nil,
+			sendCustomRequestRes:     true,
+			sendCustomRequestErr:     nil,
+			expectedAuthenticated:    nil,
+			expectedSystemErr: &ErrorResponse{
+				Code:      401,
+				ErrorCode: "invalid_credentials",
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := new(SupabaseClientMock)
+			authClient := &AuthClient{client: mockClient}
+			uc := UserCredentials{
+				Email:    tt.email,
+				Password: "password",
+			}
+			reqUrl, _ := url.Parse(SignInUrl)
+			reqBody, _ := json.Marshal(uc)
+			req := &http.Request{
+				URL:    reqUrl,
+				Header: map[string][]string{},
+				Body:   io.NopCloser(bytes.NewBuffer(reqBody)),
+			}
+
+			mockClient.
+				On("newRequestWithContext", http.MethodPost, "auth/v1/token?grant_type=password", uc).
+				Return(req, tt.newRequestWithContextErr)
+
+			mockClient.
+				On("sendCustomRequest", req, &AuthenticatedDetails{}, &ErrorResponse{}).
+				Return(tt.sendCustomRequestRes, tt.sendCustomRequestErr)
+
+			authenticated, systemErr, err := authClient.SignIn(uc)
+
+			assert.Equal(t, authenticated, tt.expectedAuthenticated)
+			assert.Equal(t, systemErr, tt.expectedSystemErr)
+			assert.Equal(t, err, tt.expectedErr)
+
 		})
 	}
 }
@@ -162,14 +290,19 @@ func TestSignOut(t *testing.T) {
 			newRequestWithContextErr: nil,
 			sendCustomRequestRes:     true,
 			sendCustomRequestErr:     nil,
-			expectedSystemErr:        &ErrorResponse{},
-			expectedErr:              nil,
+			expectedSystemErr: &ErrorResponse{
+				Code:      400,
+				ErrorCode: "error message",
+			},
+			expectedErr: nil,
 		},
 	}
 
 	for _, tt := range tests {
+		reqUrl, _ := url.Parse("http://localhost")
 		req := &http.Request{
 			Header: map[string][]string{},
+			URL:    reqUrl,
 		}
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := new(SupabaseClientMock)
@@ -235,15 +368,20 @@ func TestForgottenPassword(t *testing.T) {
 			newRequestWithContextErr: nil,
 			sendCustomRequestRes:     true,
 			sendCustomRequestErr:     nil,
-			expectedSystemErr:        &ErrorResponse{},
-			expectedErr:              nil,
+			expectedSystemErr: &ErrorResponse{
+				Code:      400,
+				ErrorCode: "error message",
+			},
+			expectedErr: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			reqUrl, _ := url.Parse("http://localhost")
 			req := &http.Request{
 				Header: map[string][]string{},
+				URL:    reqUrl,
 			}
 
 			mockClient := new(SupabaseClientMock)
@@ -304,15 +442,20 @@ func TestResetPassword(t *testing.T) {
 			newRequestWithContextErr: nil,
 			sendCustomRequestRes:     true,
 			sendCustomRequestErr:     nil,
-			expectedSystemErr:        &ErrorResponse{},
-			expectedErr:              nil,
+			expectedSystemErr: &ErrorResponse{
+				Code:      400,
+				ErrorCode: "error message",
+			},
+			expectedErr: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			reqUrl, _ := url.Parse("http://localhost")
 			req := &http.Request{
 				Header: map[string][]string{},
+				URL:    reqUrl,
 			}
 			mockClient := new(SupabaseClientMock)
 			authClient := &AuthClient{client: mockClient}
@@ -342,12 +485,8 @@ func TestResetPassword(t *testing.T) {
 }
 
 func TestRefreshToken(t *testing.T) {
-	req := &http.Request{
-		Header: map[string][]string{},
-	}
 	tests := []struct {
 		name                     string
-		newRequestWithContextReq any
 		newRequestWithContextErr error
 		sendCustomRequestRes     bool
 		sendCustomRequestErr     error
@@ -357,7 +496,6 @@ func TestRefreshToken(t *testing.T) {
 	}{
 		{
 			name:                     "Should return authenticated details",
-			newRequestWithContextReq: req,
 			newRequestWithContextErr: nil,
 			sendCustomRequestRes:     false,
 			sendCustomRequestErr:     nil,
@@ -367,7 +505,6 @@ func TestRefreshToken(t *testing.T) {
 		},
 		{
 			name:                     "New request with context should return error",
-			newRequestWithContextReq: req,
 			newRequestWithContextErr: errors.New("new request error"),
 			sendCustomRequestRes:     false,
 			sendCustomRequestErr:     nil,
@@ -377,7 +514,6 @@ func TestRefreshToken(t *testing.T) {
 		},
 		{
 			name:                     "Send custom request should return error",
-			newRequestWithContextReq: req,
 			newRequestWithContextErr: nil,
 			sendCustomRequestRes:     false,
 			sendCustomRequestErr:     errors.New("send custom request error"),
@@ -387,28 +523,37 @@ func TestRefreshToken(t *testing.T) {
 		},
 		{
 			name:                     "Send custom request should return service system error",
-			newRequestWithContextReq: req,
 			newRequestWithContextErr: nil,
 			sendCustomRequestRes:     true,
 			sendCustomRequestErr:     nil,
 			expectedAuthenticated:    nil,
-			expectedSystemErr:        &ErrorResponse{},
-			expectedErr:              nil,
+			expectedSystemErr: &ErrorResponse{
+				Code:      400,
+				ErrorCode: "error message",
+			},
+			expectedErr: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			reqUrl, _ := url.Parse("http://localhost")
+			req := &http.Request{
+				Header: map[string][]string{},
+				URL:    reqUrl,
+			}
+
 			mockClient := new(SupabaseClientMock)
 			authClient := &AuthClient{client: mockClient}
 			refreshToken := "token"
 			contextBody := map[string]string{"refresh_token": refreshToken}
-			mockClient.
-				On("newRequestWithContext", http.MethodPost, "auth/v1/token?grant_type=refresh_token", contextBody).
-				Return(tt.newRequestWithContextReq, tt.newRequestWithContextErr)
 
 			mockClient.
-				On("sendCustomRequest", tt.newRequestWithContextReq, &AuthenticatedDetails{}, &ErrorResponse{}).
+				On("newRequestWithContext", http.MethodPost, "auth/v1/token?grant_type=refresh_token", contextBody).
+				Return(req, tt.newRequestWithContextErr)
+
+			mockClient.
+				On("sendCustomRequest", req, &AuthenticatedDetails{}, &ErrorResponse{}).
 				Return(tt.sendCustomRequestRes, tt.sendCustomRequestErr)
 
 			authenticated, systemErr, err := authClient.RefreshToken(refreshToken)
