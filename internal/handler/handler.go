@@ -2,9 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/config"
+	"github.com/Fortress-Digital/go-rest-skeleton/internal/http/response"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/supabase"
 	"github.com/Fortress-Digital/go-rest-skeleton/internal/validation"
+	"github.com/labstack/echo/v4"
 	"io"
 )
 
@@ -30,4 +33,11 @@ func (h *Handler) decode(data io.ReadCloser, v interface{}) error {
 	}
 
 	return nil
+}
+
+func (h *Handler) HomeHandler(c echo.Context) error {
+	r := map[string]string{
+		"message": fmt.Sprintf("Welcome to %s.", h.cfg.Application.Name),
+	}
+	return response.SuccessResponse(c, r)
 }

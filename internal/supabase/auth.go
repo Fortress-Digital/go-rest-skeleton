@@ -163,9 +163,8 @@ func (a *AuthClient) ResetPassword(userToken string, password string) (*ErrorRes
 
 	injectAuthorizationHeader(req, userToken)
 
-	res := AuthenticatedDetails{}
 	errRes := ErrorResponse{}
-	hasCustomError, err := a.client.sendCustomRequest(req, &res, &errRes)
+	hasCustomError, err := a.client.sendCustomRequest(req, nil, &errRes)
 
 	if err != nil {
 		return nil, err
